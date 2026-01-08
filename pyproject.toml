@@ -1,0 +1,76 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "iron-sight-inspection"
+version = "0.1.0"
+description = "High-velocity railway inspection system for wagon detection and identification"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "opencv-python-headless>=4.8.0",
+    "ultralytics>=8.0.0",
+    "paddleocr>=2.6.0",
+    "streamlit>=1.28.0",
+    "psycopg2-binary>=2.9.0",
+    "onnxruntime-gpu>=1.16.0",
+    "hypothesis>=6.88.0",
+    "roboflow>=1.1.0",
+    "numpy>=1.24.0,<2.0.0",
+    "Pillow>=10.0.0",
+    "scipy>=1.11.0",
+    "onnx>=1.15.0",
+    "pyyaml>=6.0.0",
+    "torch>=2.6.0",
+    "torchvision>=0.15.0",
+    "transformers>=4.57.3",
+    "accelerate>=1.12.0",
+    "open-clip-torch>=3.2.0",
+    "lancedb>=0.26.1",
+    "matplotlib>=3.10.6",
+    "seaborn>=0.13.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.5.0",
+]
+
+[tool.uv]
+index-strategy = "unsafe-best-match"
+
+[[tool.uv.index]]
+name = "pytorch-nightly-cu128"
+url = "https://download.pytorch.org/whl/nightly/cu128"
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+
+[tool.uv.sources]
+torch = { index = "pytorch-nightly-cu128" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[project.scripts]
+iron-sight = "src.main:main"
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

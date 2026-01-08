@@ -1,0 +1,93 @@
+# IronSight Command Center - Docker Compose Configuration
+# Production deployment with GPU support
+
+version: '3.8'
+
+services:
+  ironsight-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ironsight-command-center
+    
+    # GPU support - requires NVIDIA Container Toolkit
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    
+    # Port mapping
+    ports:
+      - "${STREAMLIT_PORT:-8501}:8501"
+    
+    # Volume mounts
+    volumes:
+      # Mount models directory (read-only for security)
+      - ${MODELS_DIR:-./models}:/app/models:ro
+      # Mount logs directory (read-write)
+      - ${LOGS_DIR:-./logs}:/app/logs:rw
+      # Mount config (read-only)
+      - ${CONFIG_DIR:-./config}:/app/config:ro
+      # Optional: Mount parent aidtm directory for model access
+      - ${AIDTM_DIR:-..}:/app/aidtm:ro
+    
+    # Environment variables
+    environment:
+      - IRONSIGHT_CONFIG=/app/config/ironsight_config.yaml
+      - IRONSIGHT_MODELS_DIR=/app/models
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+      # Memory optimization
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  # Optional: Development service without GPU
+  ironsight-dashboard-cpu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ironsight-command-center-cpu
+    profiles:
+      - cpu-only
+    
+    ports:
+      - "${STREAMLIT_PORT:-8502}:8501"
+    
+    volumes:
+      - ${MODELS_DIR:-./models}:/app/models:ro
+      - ${LOGS_DIR:-./logs}:/app/logs:rw
+      - ${CONFIG_DIR:-./config}:/app/config:ro
+    
+    environment:
+      - IRONSIGHT_CONFIG=/app/config/ironsight_config.yaml
+      - IRONSIGHT_MODELS_DIR=/app/models
+      - CUDA_VISIBLE_DEVICES=""  # Disable GPU
+      - STREAMLIT_SERVER_PORT=8501
+    
+    restart: unless-stopped
+
+networks:
+  default:
+    name: ironsight-network

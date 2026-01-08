@@ -1,0 +1,192 @@
+# IronSight Command Center Configuration
+# Generated from asset discovery and existing aidtm configurations
+
+engine:
+  target_fps: 60
+  gpu_memory_fraction: 0.8
+  use_fp16: true
+  smolvlm_quantization_bits: 8
+
+models:
+  gatekeeper:
+    path: models/gatekeeper.onnx
+    timeout_ms: 0.5
+    input_size: [64, 64]
+    
+  sci_enhancer:
+    path: models/sci_enhancer.onnx
+    timeout_ms: 0.5
+    brightness_threshold: 50
+    
+  yolo_sideview:
+    path: ../yolo_sideview_damage_obb_extended.pt
+    timeout_ms: 7.0
+    
+  yolo_structure:
+    path: ../yolo_structure_obb.pt
+    timeout_ms: 7.0
+    
+  yolo_wagon_number:
+    path: models/yolo_wagon_number_obb.pt
+    timeout_ms: 6.0
+    
+  nafnet:
+    path: ../NAFNet-GoPro-width64.pth
+    timeout_ms: 20.0
+    crop_padding_percent: 0.1
+
+dashboard:
+  theme: dark_industrial
+  enable_performance_monitoring: true
+  tabs:
+    - mission_control
+    - restoration_lab
+    - semantic_search
+
+# Imported from existing vehicle_detection.yaml
+vehicle_detection:
+  # Dataset paths (relative to this config file)
+  path: ../../data/combined_dataset
+  train: train/images
+  val: valid/images
+  test: ""
+  
+  # Number of classes in unified dataset
+  nc: 4
+  
+  # Unified class definitions
+  names:
+    0: vehicle_body        # Cars + railway wagons (mapped from wagon_body)
+    1: license_plate       # Car license plates + wagon identification plates
+    2: wheel              # Car wheels + wagon wheel assemblies  
+    3: coupling_mechanism  # Railway wagon coupling (no car equivalent)
+  
+  # Training configuration hints
+  training:
+    model_architecture: "yolov8n-obb"
+    input_resolution: [640, 640]
+    
+    augmentation:
+      degrees: 10.0
+      translate: 0.1
+      scale: 0.5
+      shear: 2.0
+      perspective: 0.0001
+      hsv_h: 0.015
+      hsv_s: 0.7
+      hsv_v: 0.4
+      blur: 0.01
+      noise: 0.02
+    
+    class_weights:
+      vehicle_body: 1.0
+      license_plate: 2.0
+      wheel: 1.5
+      coupling_mechanism: 3.0
+  
+  # Validation settings
+  validation:
+    conf_threshold: 0.35
+    iou_threshold: 0.45
+    targets:
+      map50: 0.85
+      map50_95: 0.65
+      recall: 0.95
+
+# Performance monitoring
+performance:
+  latency_budgets:
+    gatekeeper: 0.5
+    sci: 0.5
+    yolo_combined: 20.0
+    deblur: 20.0
+    total: 16.67  # For 60 FPS (1000ms/60fps)
+  
+  monitoring:
+    enable_gpu_monitoring: true
+    enable_memory_tracking: true
+    log_performance_violations: true
+
+# Logging configuration
+logging:
+  version: 1
+  disable_existing_loggers: false
+  
+  formatters:
+    standard:
+      format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    detailed:
+      format: '%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s'
+  
+  handlers:
+    console:
+      class: logging.StreamHandler
+      level: INFO
+      formatter: standard
+      stream: ext://sys.stdout
+    
+    file:
+      class: logging.FileHandler
+      level: DEBUG
+      formatter: detailed
+      filename: logs/ironsight.log
+      mode: a
+  
+  loggers:
+    ironsight:
+      level: DEBUG
+      handlers: [console, file]
+      propagate: false
+  
+  root:
+    level: INFO
+    handlers: [console]
+
+# Asset paths discovered from aidtm folder
+assets:
+  config_files:
+    - ../config/vehicle_detection.yaml
+    - ../pyproject.toml
+    - ../uv.lock
+  
+  model_files:
+    - ../NAFNet-GoPro-width64.pth
+    - ../yolo_sideview_damage_obb.pt
+    - ../yolo_sideview_damage_obb_extended.pt
+    - ../yolo_structure_obb.pt
+    - ../models/final_submission_model.pth
+  
+  utility_scripts:
+    - ../src/pipeline_core.py
+    - ../src/agent_forensic.py
+    - ../src/semantic_search.py
+    - ../src/preprocessor_sci.py
+    - ../src/models.py
+    - ../scripts/train_deblur.py
+    - ../scripts/train_gatekeeper.py
+    - ../scripts/train_yolo.py
+  
+  data_directories:
+    - ../data
+    - ../models
+    - ../results
+
+# Integration with existing codebase
+integration:
+  pipeline_core_path: ../src/pipeline_core.py
+  forensic_agent_path: ../src/agent_forensic.py
+  semantic_search_path: ../src/semantic_search.py
+  sci_preprocessor_path: ../src/preprocessor_sci.py
+  
+  # Existing model compatibility
+  existing_models:
+    nafnet_gopro: ../NAFNet-GoPro-width64.pth
+    yolo_sideview: ../yolo_sideview_damage_obb_extended.pt
+    yolo_structure: ../yolo_structure_obb.pt
+
+# Metadata
+metadata:
+  created_by: ironsight-command-center
+  version: "0.1.0"
+  description: "Production-grade real-time rail inspection dashboard configuration"
+  based_on: "aidtm asset discovery and vehicle_detection.yaml"

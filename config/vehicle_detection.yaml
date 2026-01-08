@@ -1,0 +1,157 @@
+# Vehicle Detection Dataset Configuration
+# Unified configuration for training models on both cars and railway wagons
+# 
+# This configuration defines the combined dataset structure and class mappings
+# for training robust vehicle detection models that work across different
+# vehicle types (cars and railway wagons).
+
+# Dataset paths (relative to this config file)
+path: ../data/combined_dataset  # Root dataset directory
+train: train/images             # Training images directory
+val: valid/images              # Validation images directory
+test: ""                       # No test set defined
+
+# Number of classes in unified dataset
+nc: 4
+
+# Unified class definitions
+# Maps both car and wagon components to generic vehicle classes
+names:
+  0: vehicle_body        # Cars + railway wagons (mapped from wagon_body)
+  1: license_plate       # Car license plates + wagon identification plates
+  2: wheel              # Car wheels + wagon wheel assemblies  
+  3: coupling_mechanism  # Railway wagon coupling (no car equivalent)
+
+# Class mapping documentation
+# Original wagon classes -> Unified vehicle classes:
+#   wagon_body -> vehicle_body
+#   identification_plate -> license_plate  
+#   wheel_assembly -> wheel
+#   coupling_mechanism -> coupling_mechanism (unchanged)
+
+# Dataset composition
+dataset_sources:
+  roboflow_wagons:
+    source: "vishakha-singh/wagon-detection-eh2ov"
+    format: "yolov8-obb"
+    classes: ["wagon_body", "wheel_assembly", "coupling_mechanism", "identification_plate"]
+    
+  local_cars:
+    source: "blurred_sharp/blurred_sharp/"
+    format: "blurred_sharp_pairs"
+    classes: ["vehicle_body"]  # Inferred from image content
+    
+  augmented_data:
+    source: "physics_based_augmentation"
+    count: 2000
+    techniques: ["gamma_correction", "poisson_noise", "motion_blur"]
+
+# Training configuration hints
+training:
+  # Recommended model configurations
+  model_architecture: "yolov8n-obb"  # Nano model with oriented bounding boxes
+  input_resolution: [640, 640]       # Standard YOLO input size
+  
+  # Augmentation settings (applied during training)
+  augmentation:
+    # Geometric augmentations
+    degrees: 10.0          # Rotation range
+    translate: 0.1         # Translation range
+    scale: 0.5             # Scale range
+    shear: 2.0             # Shear range
+    perspective: 0.0001    # Perspective transformation
+    
+    # Photometric augmentations  
+    hsv_h: 0.015          # Hue augmentation
+    hsv_s: 0.7            # Saturation augmentation
+    hsv_v: 0.4            # Value augmentation
+    
+    # Additional augmentations for railway conditions
+    blur: 0.01            # Motion blur probability
+    noise: 0.02           # Noise injection probability
+    
+  # Class weights (if needed for imbalanced classes)
+  class_weights:
+    vehicle_body: 1.0
+    license_plate: 2.0     # Higher weight due to smaller size
+    wheel: 1.5
+    coupling_mechanism: 3.0 # Highest weight (wagon-only, less data)
+
+# Validation settings
+validation:
+  # Minimum confidence thresholds for evaluation
+  conf_threshold: 0.35    # Detection confidence threshold
+  iou_threshold: 0.45     # NMS IoU threshold
+  
+  # Performance targets
+  targets:
+    map50: 0.85           # mAP@0.5 target
+    map50_95: 0.65        # mAP@0.5:0.95 target
+    recall: 0.95          # Minimum recall for wagons at 50-80 km/h
+    
+# Data splits
+splits:
+  train_ratio: 0.8        # 80% for training
+  val_ratio: 0.2          # 20% for validation
+  test_ratio: 0.0         # No test split
+  
+  # Ensure representation from both datasets
+  min_wagon_samples_train: 500   # Minimum wagon samples in training
+  min_car_samples_train: 800     # Minimum car samples in training
+  min_wagon_samples_val: 100     # Minimum wagon samples in validation
+  min_car_samples_val: 200       # Minimum car samples in validation
+
+# Quality assurance
+quality_checks:
+  min_image_size: [320, 320]      # Minimum image dimensions
+  max_image_size: [2048, 2048]    # Maximum image dimensions
+  min_bbox_area: 100              # Minimum bounding box area (pixels²)
+  max_aspect_ratio: 10.0          # Maximum width/height ratio
+  
+  # Annotation validation
+  validate_obb: true              # Validate oriented bounding boxes
+  check_class_distribution: true   # Check for class imbalance
+  verify_image_label_pairs: true  # Ensure all images have labels
+
+# Hardware requirements
+hardware:
+  min_gpu_memory: "4GB"          # Minimum GPU memory for training
+  recommended_gpu: "RTX 3060"    # Recommended GPU
+  batch_size_per_gpu: 16         # Recommended batch size
+  
+# Export settings for deployment
+export:
+  format: "onnx"                 # Export format for inference
+  precision: "fp16"              # Use FP16 for edge deployment
+  dynamic_shapes: true           # Support dynamic input shapes
+  opset_version: 11              # ONNX opset version
+  
+# Deployment targets
+deployment:
+  edge_devices: ["jetson_nano", "jetson_xavier", "jetson_orin"]
+  inference_targets:
+    latency_ms: 25               # Maximum inference time
+    throughput_fps: 30           # Target throughput
+    memory_mb: 512               # Maximum memory usage
+
+# Metadata
+metadata:
+  created_by: "iron-sight-inspection"
+  version: "1.0"
+  description: "Combined vehicle detection dataset for cars and railway wagons"
+  license: "Project-specific"
+  
+  # Dataset statistics (to be filled after dataset creation)
+  statistics:
+    total_images: null
+    total_annotations: null
+    class_distribution: null
+    train_images: null
+    val_images: null
+    
+# Requirements traceability
+requirements:
+  - "5.2: Training data for wagon_body, wheel_assembly, coupling_mechanism, identification_plate"
+  - "Unified classes: vehicle_body (cars + wagons), license_plate (cars + wagon IDs), wheel, coupling_mechanism"
+  - "Combined dataset paths: Roboflow wagon data + local car data + augmented images"
+  - "Train/val/test splits ensuring both car and wagon representation"
